@@ -1,0 +1,68 @@
+/* Import Roboto font */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+/* Apply to entire page */
+body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(to bottom, #e0dfff, #f8f4ff);
+    margin: 0;
+    padding: 40px 0 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+}
+
+/* Card styling like your dashboard */
+.dashboard-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    padding: 20px 30px;
+    width: 320px;
+    text-align: center;
+}
+
+/* Header with gradient like your screenshot */
+.dashboard-card .header {
+    background: linear-gradient(to right, #2c58ff, #3a6eff);
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 12px 12px 0 0;
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Dashboard content box */
+.dashboard-card .content {
+    margin-top: 20px;
+    background: #f8f8f8;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+/* Buttons like your screenshot */
+.dashboard-card button {
+    background: #2c58ff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-weight: 500;
+    cursor: pointer;
+    margin: 5px;
+    transition: background 0.3s ease;
+}
+
+.dashboard-card button:hover {
+    background: #1f40d2;
+}
+
+/* Role text */
+.dashboard-card .role {
+    margin-top: 10px;
+    font-weight: 500;
+    color: #333;
+}

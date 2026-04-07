@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<style>
+body { font-family:'Roboto',sans-serif; background: linear-gradient(to bottom,#e0dfff,#f8f4ff); display:flex; justify-content:center; padding-top:50px; margin:0; }
+.dashboard-card { background:#fff; border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,0.15); width:350px; text-align:center; }
+.header { background: linear-gradient(to right,#2c58ff,#3a6eff); color:#fff; padding:12px 15px; border-radius:12px 12px 0 0; font-weight:500; display:flex; justify-content:space-between; align-items:center; font-size:16px; }
+.content { margin:20px; background:#f8f8f8; border-radius:8px; padding:20px; }
+button { background:#2c58ff; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-weight:500; cursor:pointer; margin:5px; transition:0.3s; }
+button:hover { background:#1f40d2; }
+</style>
+</head>
+<body>
+<div class="dashboard-card">
+    <div class="header">
+        <span>📊 Dashboard</span>
+        <span id="userGreeting"></span>
+    </div>
+    <div class="content">
+        <h2>Welcome!</h2>
+        <button onclick="goToAttendance()">Go to Attendance</button>
+        <button onclick="logout()">Logout</button>
+        <p id="roleText"></p>
+    </div>
+</div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const role = urlParams.get('role') || 'Student';
+const user = urlParams.get('user') || '';
+
+document.getElementById('userGreeting').innerText = `Hello, ${user}`;
+document.getElementById('roleText').innerText = `Role: ${role}`;
+
+function goToAttendance(){
+    window.location.href = `attendance.html?role=${role}&user=${user}`;
+}
+function logout(){
+    window.location.href='login.html';
+}
+</script>
+</body>
+</html>

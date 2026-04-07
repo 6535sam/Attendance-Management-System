@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attendance Management System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root { --primary:#1e3a8a; --danger:#b91c1c; --bg:#fceef2; }
+body{ font-family:'Segoe UI'; background:var(--bg); padding:10px; }
+.app{ max-width:1400px; margin:auto; background:white; padding:15px; border-radius:10px; }
+table{ width:100%; border-collapse:collapse; font-size:11px; }
+th,td{ border:1px solid #ddd; padding:5px; text-align:center; }
+th{background:#eee;}
+.name-col{text-align:left;}
+.p{background:green;color:white;}
+.a{background:red;color:white;}
+.def{background:#ffe4e4;}
+button{ padding:6px 10px; margin:3px; border:none; cursor:pointer; color:white; border-radius:5px; position:relative; z-index:10; }
+.save{background:blue;}
+.msg{background:#25d366;}
+.card{ padding:10px; border-radius:8px; color:white; }
+</style>
+</head>
+<body>
+<div class="app">
+<h2 style="text-align:center;color:#1e3a8a;">🎓 Smart Attendance Dashboard</h2>
+
+<!-- Dashboard stats -->
+<div style="display:flex; justify-content:space-around; margin-bottom:10px;">
+<div class="card" style="background:#1e3a8a;">Total: <span id="totalStd"></span></div>
+<div class="card" style="background:green;">Avg %: <span id="avgAtt"></span></div>
+<div class="card" style="background:red;">Defaulters: <span id="defCount"></span></div>
+</div>
+
+<!-- Date & Time -->
+<input type="date" id="date" onchange="render()">
+<input type="text" id="timeInput" placeholder="Enter Time">
+<select id="lectureSelect"></select>
+<button onclick="setLectureTime()">⏰ Set Time</button>
+<button onclick="autoTime()">⏱ Auto Time</button>
+<br><br>
+
+<!-- Attendance buttons -->
+<button onclick="markAll('P')">✅ Present All</button>
+<button onclick="markAll('A')">❌ Absent All</button>
+<button onclick="markAll('')">⚪ None</button>
+<button onclick="showDefaulters()">⚠️ Defaulters</button>
+<button class="msg" onclick="sendDefaulterMessages()">📩 WhatsApp Report</button>
+<button class="save" onclick="exportExcel()">💾 Export Excel</button>
+
+<div id="defBox"></div>
+
+<!-- Attendance table -->
+<table>
+<thead id="thead"></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+// ----- User info -----
+const urlParams = new URLSearchParams(window.location.search);
+const role = urlParams.get('role') || 'Student';
+const user = urlParams.get('user') || '';
+
+// ----- Students & Lectures -----
+const startRoll = 201;
+const students = [
+  "CHOUGULE SHRADDHA SHIVAJI","KADAM RHUDAYA BALASO","KADAMPATIL BHAKTI S.","KALUKHE TEJAS RAJENDRA","KARANDE PRATHAMESH TANAJI",
+  "KHILARI RITESH DATTATRAY","KOKANE ROHIT SURESH","KUMBHAR SANDHYA MAHESH","LAD PAVAN GAJANAN","LAD POOJA SHIVAJI",
+  "LAKADE OM SANTOSH","MAHIND SHRAVANI AMOL","MAJGAONKAR SHRAVANI ABHIJIT","MAKANDAR SANA AKBAR","MANE SHRUTIKA SUNIL",
+  "MOKASHI PRANOTI AMOL","MUDRAS SAURABH SANJAY","MUSANDE GAURI SHIRISH","NALANG ATHARV PRADIP","NALANG HARSHALA YUVRAJ",
+  "NANAWARE SHANIKUMAR SOMNA","NATEKAR SAMRUDDHI BHIKAJI","NIKAM PRATIKSHA SANJAY","NIKAM SAMRUDDHI BHARAT","PARIT SIDDHANT SANJAY",
+  "PATIL ARYAN SANJAY","PATIL ATHARV SANJAY","PATIL AVADHUT VILAS","PATIL DIVYA SHIVAJI","PATIL GAYATRI BHAUSO",
+  "PATIL NANDAN MAHENDRASING","PATIL OM SANDEEP","PATIL PRATHMESH MACHINDRA","PATIL PRATIKSHA MARUTI","PATIL PRIYANKA SUNIL",
+  "PATIL RAJVARDHAN SHIVAJI","PATIL RASIKA RAGHUNATH","PATIL RAVINA PANDURANG","PATIL ROHIT VISHWANATH","PATIL SAHIL RAMCHANDRA",
+  "PATIL SAKSHI SHAILESH","PATIL SAKSHI TANAJI","PATIL SANIKA YASHAWANT","PATIL SHARVIL SHAHAJI","PATIL SHUBHAM MARUTI",
+  "PATIL SHWETA SHIVAJI","PUJARI POOJA NARAYAN","RAO SAMRUDDHI ATUL","SANGLE MAHESH","SAWANT ABHAY UDAY",
+  "SHENAVI SHRIHARSH RANJIT","SHINDE SAKSHI NAMDEV","SHINDE SANIYA SANDEEP","SHINGARE VAISHNAVI MAROTI","SUPALE SUYOG SADASHIV",
+  "SURYAVANSHI SIDDHI SADASHIV","SUTAR PRITI BALASAHEB","TALEKAR SNEHAL RAJARAM","THOMBARE OMKAR VIJAY","TUREWALE PRADNYA RAKHAMAJ",
+  "VADAR SHRADDHA DILIP","WADIKAR VISHAL PRASHANT","WAGHMARE PRATHMESH TUKAR","YADAV AMRUTA UTTAM","YERUDKAR MARUTI DATTATRAY",
+  "PATIL PRATHMESH GURUPREM","SAWANT ADITYA SUDHAKAR","PATIL SHREYASH VIJAY","DAKHORE SHARDA BABARAO","SHUBHAM VIJAY HAGWANE"
+];
+const lectures = ["DBMS","CC","ML","C#","OS","CS"];
+
+// ----- Local storage -----
+let attendance = JSON.parse(localStorage.getItem("att")) || {};
+let lectureTimes = JSON.parse(localStorage.getItem("times")) || {};
+document.getElementById("date").value = new Date().toISOString().split('T')[0];
+
+// ----- Functions -----
+function saveLocal(){ 
+  localStorage.setItem("att",JSON.stringify(attendance)); 
+  localStorage.setItem("times",JSON.stringify(lectureTimes)); 
+}
+
+// Load lecture dropdown
+function loadLectureDropdown(){
+  const lectureSelect = document.getElementById("lectureSelect");
+  lectureSelect.innerHTML="";
+  lectures.forEach(l=> lectureSelect.innerHTML += `<option>${l}</option>`);
+}
+
+// Set lecture time
+function setLectureTime(){
+  let d=document.getElementById("date").value;
+  let lec=document.getElementById("lectureSelect").value;
+  let time=document.getElementById("timeInput").value;
+  if(!time){ alert("Enter time"); return; }
+  if(!lectureTimes[d]) lectureTimes[d]={};
+  lectureTimes[d][lec]=time;
+  saveLocal(); render();
+}
+
+// Auto current time
+function autoTime(){ document.getElementById("timeInput").value = new Date().toLocaleTimeString(); }
+
+// Mark attendance
+function mark(s,l,v){
+    if(role!=="Teacher") return;
+    let d=document.getElementById("date").value;
+    if(!attendance[d]) attendance[d]={};
+    if(!attendance[d][s]) attendance[d][s]={};
+    attendance[d][s][l]=v;
+    saveLocal(); render();
+}
+
+// Mark all
+function markAll(val){
+    if(role!=="Teacher") return;
+    let d=document.getElementById("date").value;
+    if(!attendance[d]) attendance[d]={};
+    students.forEach(s=>{
+        if(!attendance[d][s]) attendance[d][s]={};
+        lectures.forEach(l=> attendance[d][s][l]=val);
+    });
+    saveLocal(); render();
+}
+
+// Calculate monthly % only for marked lectures
+function calcMonthly(s){
+    let total=0, present=0;
+    for(let d in attendance){
+        if(attendance[d][s]){
+            lectures.forEach(l=>{
+                let val=attendance[d][s][l];
+                if(val){
+                    total++;
+                    if(val=="P") present++;
+                }
+            });
+        }
+    }
+    return total==0 ? 0 : Math.round((present/total)*100);
+}
+
+// Render table
+function render(){
+    let d=document.getElementById("date").value;
+    let head="<tr><th>Roll</th><th>Name</th><th>%</th>";
+    lectures.forEach(l=>{ head+=`<th>${l}<br><small>${lectureTimes[d]?.[l]||''}</small></th>`; });
+    document.getElementById("thead").innerHTML=head+"</tr>";
+
+    let body="";
+    students.forEach((s,i)=>{
+        let marked=0, present=0;
+        lectures.forEach(l=>{
+            let val=attendance[d]?.[s]?.[l];
+            if(val){
+                marked++;
+                if(val=="P") present++;
+            }
+        });
+        let per = marked==0 ? 0 : Math.round((present/marked)*100);
+
+        body+=`<tr class="${per<75?'def':''}"><td>${startRoll+i}</td><td class="name-col">${s}</td><td>${per}%</td>`;
+        lectures.forEach(l=>{
+            let val=attendance[d]?.[s]?.[l]||"";
+            if(role==="Teacher"){
+                body+=`<td><button class="p" onclick="mark('${s}','${l}','P')" style="opacity:${val=='P'?1:.3}">P</button>
+                       <button class="a" onclick="mark('${s}','${l}','A')" style="opacity:${val=='A'?1:.3}">A</button></td>`;
+            } else {
+                body+=`<td>${val}</td>`;
+            }
+        });
+        body+="</tr>";
+    });
+    document.getElementById("tbody").innerHTML=body;
+    updateDashboard();
+}
+
+// Update dashboard stats
+function updateDashboard(){
+    let total=students.length,sum=0,def=0;
+    students.forEach(s=>{
+        let per=calcMonthly(s);
+        sum+=per;
+        if(per<75) def++;
+    });
+    document.getElementById("totalStd").innerText=total;
+    document.getElementById("avgAtt").innerText=Math.round(sum/total);
+    document.getElementById("defCount").innerText=def;
+}
+
+// Show defaulters
+function showDefaulters(){
+    let html="<h3>⚠️ Defaulters List</h3>";
+    students.forEach(s=>{
+        let per=calcMonthly(s);
+        if(per<75) html+=`<p>${s} - ${per}%</p>`;
+    });
+    document.getElementById("defBox").innerHTML=html;
+}
+
+// WhatsApp report
+function sendDefaulterMessages(){
+    if(role!=="Teacher"){ alert("Only teachers can send messages."); return; }
+    let msg="📊 Attendance Report:\n\n";
+    students.forEach(s=>{
+        let per=calcMonthly(s);
+        msg += per<75?`⚠️ ${s} - ${per}%\n`:`✅ ${s} - ${per}%\n`;
+    });
+    window.open(`https://wa.me/91XXXXXXXXXX?text=${encodeURIComponent(msg)}`,"_blank");
+}
+
+// Export Excel
+function exportExcel(){
+    if(role!=="Teacher"){ alert("Only teachers can export."); return; }
+    
+    let wb = XLSX.utils.book_new();
+    let d = document.getElementById("date").value;
+
+    // Daily Sheet
+    let dailyData = [];
+    let dailyHeader = ["Roll","Name","%"];
+    lectures.forEach(l => dailyHeader.push(`${l} (${lectureTimes[d]?.[l]||''})`));
+    dailyData.push(dailyHeader);
+
+    students.forEach((s,i)=>{
+        let marked=0, present=0;
+        lectures.forEach(l=>{
+            let val=attendance[d]?.[s]?.[l];
+            if(val){ marked++; if(val=="P") present++; }
+        });
+        let per = marked==0 ? 0 : Math.round((present/marked)*100);
+        let row = [startRoll+i, s, per+"%"];
+        lectures.forEach(l => row.push(attendance[d]?.[s]?.[l] || 0));
+        dailyData.push(row);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dailyData), `Daily_${d}`);
+
+    // Monthly Sheet
+    let allDates = Object.keys(attendance).sort();
+    let monthlyData = [];
+    let monthlyHeader = ["Roll","Name"];
+    lectures.forEach(l => monthlyHeader.push(...allDates.map(date => `${l} ${date}`)));
+    monthlyHeader.push("Monthly %");
+    monthlyData.push(monthlyHeader);
+
+    students.forEach((s,i)=>{
+        let row = [startRoll+i, s];
+        lectures.forEach(l => {
+            allDates.forEach(date=>{
+                row.push(attendance[date]?.[s]?.[l] || 0);
+            });
+        });
+        row.push(calcMonthly(s));
+        monthlyData.push(row);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(monthlyData), "Monthly_Attendance");
+
+    XLSX.writeFile(wb, `Attendance_${d}.xlsx`);
+}
+
+// Initialize
+loadLectureDropdown();
+render();
+</script>
+</body>
+</html>
